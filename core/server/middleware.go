@@ -106,6 +106,7 @@ func Middleware(writer http.ResponseWriter, request *http.Request) {
 
 	//Check IP reputation before processing
 	if firewall.IsIPBlocked(ip) {
+		firewall.RecordIPRequest(ip, false, true)
 		writer.Header().Set("Content-Type", "text/plain")
 		SendResponse("Blocked by BalooProxy.\nYour IP has been blocked due to suspicious activity.", buffer, writer)
 		return
@@ -127,6 +128,8 @@ func Middleware(writer http.ResponseWriter, request *http.Request) {
 	//Ratelimit faster if client repeatedly fails the verification challenge (feel free to play around with the threshhold)
 	if ipCountCookie > adaptiveChallengeLimit {
 		firewall.UpdateReputation(ip, firewall.ScoreRateLimitHit, "rate_limit_hit")
+		firewall.RecordIPRateLimitHit(ip)
+		firewall.RecordIPRequest(ip, false, true)
 		writer.Header().Set("Content-Type", "text/plain")
 		SendResponse("Blocked by BalooProxy.\nYou have been ratelimited. (R1)", buffer, writer)
 		return
@@ -135,6 +138,8 @@ func Middleware(writer http.ResponseWriter, request *http.Request) {
 	//Ratelimit spamming Ips (feel free to play around with the threshhold)
 	if ipCount > adaptiveIPLimit {
 		firewall.UpdateReputation(ip, firewall.ScoreRateLimitHit, "rate_limit_hit")
+		firewall.RecordIPRateLimitHit(ip)
+		firewall.RecordIPRequest(ip, false, true)
 		writer.Header().Set("Content-Type", "text/plain")
 		SendResponse("Blocked by BalooProxy.\nYou have been ratelimited. (R2)", buffer, writer)
 		return
@@ -164,6 +169,21 @@ skipRateLimit:
 		return
 	}
 
+	// Check geo/ASN filtering
+	if firewall.GeoFilteringEnabled {
+		blocked, reason := firewall.CheckGeoFilter(ip)
+		if blocked {
+			if reason == "challenge" {
+				// Challenge unknown IPs instead of blocking
+				susLv = 3 // Force captcha challenge
+			} else {
+				writer.Header().Set("Content-Type", "text/plain")
+				SendResponse("Blocked by BalooProxy.\n"+reason, buffer, writer)
+				return
+			}
+		}
+	}
+
 	//Demonstration of how to use "susLv". Essentially allows you to challenge specific requests with a higher challenge
 
 	//SyncMap because semi-readonly
@@ -172,9 +192,15 @@ skipRateLimit:
 
 	reqUa := request.UserAgent()
 
-	if len(domainSettings.CustomRules) != 0 {
+		if len(domainSettings.CustomRules) != 0 {
+		// Get geo data for firewall rules
+		ipCountry := firewall.GetIPCountryForFilter(ip)
+		ipASN := firewall.GetIPASNForFilter(ip)
+		
 		requestVariables := gofilter.Message{
 			"ip.src":                net.ParseIP(ip),
+			"ip.country":            ipCountry,
+			"ip.asn":                ipASN,
 			"ip.engine":             browser,
 			"ip.bot":                botFp,
 			"ip.fingerprint":        tlsFp,
@@ -249,6 +275,8 @@ skipRateLimit:
 		case 1:
 			// Track challenge failure for reputation
 			firewall.UpdateReputation(ip, firewall.ScoreChallengeFailure, "challenge_failure")
+			firewall.RecordIPChallengeFailure(ip)
+			firewall.RecordIPRequest(ip, false, false)
 			writer.Header().Set("Set-Cookie", "_1__bProxy_v="+encryptedIP+"; SameSite=Lax; path=/; Secure")
 			http.Redirect(writer, request, request.URL.RequestURI(), http.StatusFound)
 			return
@@ -353,6 +381,10 @@ skipRateLimit:
 	
 	// Update whitelist learning
 	firewall.UpdateWhitelistLearning(ip, true)
+	
+	// Record metrics
+	firewall.RecordIPRequest(ip, true, false)
+	firewall.UpdateIPReputationScore(ip, firewall.GetReputationScore(ip))
 
 	//Reserved proxy-paths
 

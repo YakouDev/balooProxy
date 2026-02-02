@@ -32,3 +32,13 @@ func init() {
 	gofilter.RegisterField("proxy.rps", gofilter.FT_INT)
 	gofilter.RegisterField("proxy.rps_allowed", gofilter.FT_INT)
 }
+
+// GetIPCountryForFilter returns country code for firewall rules
+func GetIPCountryForFilter(ip string) string {
+	return GetIPCountry(ip)
+}
+
+// GetIPASNForFilter returns ASN for firewall rules
+func GetIPASNForFilter(ip string) int {
+	return GetIPASN(ip)
+}

@@ -159,6 +159,42 @@ func Load() {
 		firewall.MaxDifficulty = domains.Config.Proxy.Challenge.MaxDifficulty
 	}
 
+	// Initialize geo/ASN filtering
+	if domains.Config.Proxy.GeoFiltering.Enabled {
+		firewall.GeoFilteringEnabled = true
+		firewall.GeoFilterMode = domains.Config.Proxy.GeoFiltering.Mode
+		if firewall.GeoFilterMode == "" {
+			firewall.GeoFilterMode = "blacklist"
+		}
+		firewall.AllowedCountries = domains.Config.Proxy.GeoFiltering.AllowedCountries
+		firewall.BlockedCountries = domains.Config.Proxy.GeoFiltering.BlockedCountries
+		firewall.BlockedASN = domains.Config.Proxy.GeoFiltering.BlockedASN
+		firewall.ChallengeUnknown = domains.Config.Proxy.GeoFiltering.ChallengeUnknown
+		
+		// Start cache cleanup routine
+		firewall.StartGeoCacheCleanupRoutine()
+	}
+
+	// Initialize metrics
+	if domains.Config.Proxy.Monitoring.EnableMetrics {
+		firewall.MetricsEnabled = true
+		if domains.Config.Proxy.Monitoring.MetricsPort > 0 {
+			firewall.MetricsPort = domains.Config.Proxy.Monitoring.MetricsPort
+		}
+		
+		// Initialize global metrics
+		firewall.MetricsData.GlobalMetrics.StartTime = time.Now()
+		
+		// Start metrics routines
+		firewall.StartMetricsCleanupRoutine()
+		firewall.StartMetricsUpdateRoutine()
+		
+		// Start Prometheus export if enabled
+		if domains.Config.Proxy.Monitoring.PrometheusExport {
+			go firewall.StartPrometheusServer()
+		}
+	}
+
 	// Initialize multi-window rate limiting
 	if domains.Config.Proxy.RatelimitWindows.Burst > 0 {
 		firewall.BurstWindow = domains.Config.Proxy.RatelimitWindows.Burst

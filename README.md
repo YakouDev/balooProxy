@@ -69,6 +69,12 @@ balooProxy now includes advanced multi-layered DDoS protection:
 - Better detection of both spike attacks and persistent attacks
 - More accurate rate limiting across different time scales
 
+### **Geographic & ASN Filtering**
+- Filter requests by country code (whitelist/blacklist)
+- Block entire ASNs (hosting providers, VPNs)
+- 24-hour caching for performance
+- Integrated with firewall rules
+
 ## **Lightweight**
 
 balooProxy tries to be as lightweight as possible, in order to run smoothly for everyone. Everything has its limits tho.
@@ -233,6 +239,62 @@ Multiple time windows for better attack pattern detection:
 - **`long`**: Long-term window duration in seconds (default: 3600)
 
 This allows detection of both short-term spikes and persistent attacks.
+
+### **Geographic & ASN Filtering** <sup>New</sup>
+
+Filter requests based on geographic location and ASN (Autonomous System Number):
+
+- **`enabled`**: Enable geo/ASN filtering (default: false)
+- **`mode`**: Filtering mode - "whitelist" or "blacklist" (default: "blacklist")
+- **`allowedCountries`**: Array of country codes to whitelist (e.g., ["US", "ID", "EU"])
+- **`blockedCountries`**: Array of country codes to blacklist (e.g., ["CN", "RU"])
+- **`blockedASN`**: Array of ASN numbers to block (e.g., [12345, 67890])
+- **`challengeUnknown`**: Challenge IPs when geo lookup fails instead of blocking (default: false)
+
+**Features:**
+- Uses ipiz.net API for IP geolocation
+- 24-hour caching to minimize API calls
+- Supports both whitelist and blacklist modes
+- ASN blocking for entire hosting providers/VPNs
+- Integrated with firewall rules (use `ip.country` and `ip.asn` in expressions)
+
+**Example firewall rule:**
+```json
+{
+    "expression": "(ip.country eq \"CN\" or ip.asn eq 12345)",
+    "action": "3"
+}
+```
+
+### **Enhanced Monitoring & Metrics** <sup>New</sup>
+
+Advanced metrics tracking and optional Prometheus export:
+
+- **`enableMetrics`**: Enable metrics collection (default: true)
+- **`metricsPort`**: Port for metrics HTTP server (default: 9090)
+- **`prometheusExport`**: Enable Prometheus metrics export endpoint (default: false)
+
+**Metrics tracked:**
+- Total requests (global and per-domain)
+- Requests per second
+- Active connections
+- IP reputation scores
+- Challenge success/failure rates
+- Rate limit hits
+- Attack status per domain
+- Uptime
+
+**Prometheus endpoint:**
+When `prometheusExport` is enabled, metrics are available at `http://localhost:9090/metrics` in Prometheus format.
+
+**Example metrics:**
+```
+balooproxy_total_requests 123456
+balooproxy_requests_per_second 45.2
+balooproxy_active_connections 234
+balooproxy_domain_stage{domain="example.com"} 2
+balooproxy_ip_reputation_score{ip="1.2.3.4"} 75
+```
 
 ### **Firewall Rules**
 ---

@@ -105,6 +105,8 @@ type Proxy struct {
 	Reputation      ReputationSettings `json:"reputation"`
 	AdaptiveRateLimit AdaptiveRateLimitSettings `json:"adaptiveRatelimit"`
 	Challenge       ChallengeSettings `json:"challenge"`
+	GeoFiltering    GeoFilteringSettings `json:"geoFiltering"`
+	Monitoring      MonitoringSettings `json:"monitoring"`
 }
 
 type ReputationSettings struct {
@@ -134,6 +136,21 @@ type RatelimitWindows struct {
 	Short  int `json:"short"`
 	Medium int `json:"medium"`
 	Long   int `json:"long"`
+}
+
+type GeoFilteringSettings struct {
+	Enabled          bool     `json:"enabled"`
+	Mode             string   `json:"mode"` // "whitelist" or "blacklist"
+	AllowedCountries []string `json:"allowedCountries"`
+	BlockedCountries []string `json:"blockedCountries"`
+	BlockedASN       []int    `json:"blockedASN"`
+	ChallengeUnknown bool     `json:"challengeUnknown"`
+}
+
+type MonitoringSettings struct {
+	EnableMetrics    bool `json:"enableMetrics"`
+	MetricsPort      int  `json:"metricsPort"`
+	PrometheusExport bool `json:"prometheusExport"`
 }
 
 type ConnectionLimits struct {

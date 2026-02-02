@@ -52,6 +52,19 @@
             "maxDifficulty": 10,
             "browserVerification": false
         },
+        "geoFiltering": {
+            "enabled": false,
+            "mode": "blacklist",
+            "allowedCountries": [],
+            "blockedCountries": [],
+            "blockedASN": [],
+            "challengeUnknown": false
+        },
+        "monitoring": {
+            "enableMetrics": true,
+            "metricsPort": 9090,
+            "prometheusExport": false
+        },
         "colors": [
             "0",
             "31"
